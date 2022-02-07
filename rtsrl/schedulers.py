@@ -59,7 +59,7 @@ def schedule(
         heapq.heappush(tasks_queue, (0, task))
 
     # a list and dict to hold tasks+metadata that can be done at the current time
-    todo_tasks = []  # {task_id}
+    todo_tasks = []  # [task_id]
     todo_dict: Dict[int, deque] = {}  # {task_id: deque([deadline, exectime_remaining])}
 
     # resulting chronological schedule of task_id and duration pairs
