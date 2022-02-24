@@ -1,0 +1,6 @@
+# Rate-monotonic scheduling correctness
+# Example from https://www.geeksforgeeks.org/rate-monotonic-scheduling/ 
+
+0, 20, 3, 20
+1, 5, 2, 5
+2, 10, 2, 10

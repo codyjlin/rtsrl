@@ -19,7 +19,9 @@ def read_tasks(filename: str) -> List[Task]:
     """
     with open(filename) as f:
         return [
-            Task._make([int(x) for x in line.split(", ")]) for line in f.readlines()
+            Task._make([int(x) for x in line.split(", ")])
+            for line in f.readlines()
+            if len(line) > 1 and line[0] != "#"
         ]
 
 
@@ -32,6 +34,11 @@ def get_lcm_period(tasks: List[Task]) -> int:
         lcm = lcm * task.period // gcd(lcm, task.period)
 
     return lcm
+
+
+def assert_is_schedulable(tasks: List[Task]):
+    utilization = sum(task.exectime / task.period for task in tasks)
+    assert utilization <= 1, "Tasks are not schedulable using any scheduling algorithm."
 
 
 def print_tasks(tasks: List[Task]):
