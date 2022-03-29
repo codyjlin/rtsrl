@@ -13,3 +13,6 @@ lint:
 
 run:
 	python ./rtsrl/main.py
+
+run-q-learning:
+	python ./rtsrl/qlearning.py

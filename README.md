@@ -31,6 +31,12 @@ This project will include at least the following parts:
 
 	:warning: You may need to follow step 1 of the **Environment Setup** section below.
 
+4. To run the current q-learning script (WIP), run the command:
+
+	```bash
+	make run-q-learning
+	```
+
 
 ## Environment Setup
 
