@@ -15,7 +15,7 @@ class Task(NamedTuple):
 
 def read_tasks(filename: str) -> List[Task]:
     """
-    Opens the file at filename and returns a list of tasks.
+    Opens the file at filename and returns a list of tasks. Casts floats to integers by floor.
     """
     with open(filename) as f:
         return [
@@ -39,6 +39,27 @@ def get_lcm_period(tasks: List[Task]) -> int:
 def assert_is_schedulable(tasks: List[Task]):
     utilization = sum(task.exectime / task.period for task in tasks)
     assert utilization <= 1, "Tasks are not schedulable using any scheduling algorithm."
+
+
+def assert_under_constraints(
+    tasks: List[Task],
+    max_tasks=5,
+    max_period=20,
+    max_exectime=5,
+    period_multiple=5,
+    max_utilization=0.8,
+):
+    assert len(tasks) <= max_tasks
+    for task in tasks:
+        assert 0 < task.period <= max_period
+        assert 0 < task.exectime <= max_exectime
+        assert task.period % period_multiple == 0
+        assert task.deadline == task.period
+
+    utilization = sum(task.exectime / task.period for task in tasks)
+    assert (
+        utilization <= max_utilization
+    ), f"Total utilization is above {max_utilization*100}%"
 
 
 def print_tasks(tasks: List[Task]):

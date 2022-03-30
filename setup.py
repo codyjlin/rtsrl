@@ -7,7 +7,7 @@ REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
     "flake8",
-    "black==19.10b0",
+    "black==21.10b0",
     "isort>=5",
     "mypy==0.790",
 ]
