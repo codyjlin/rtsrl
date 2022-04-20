@@ -3,6 +3,10 @@ from math import gcd
 from textwrap import dedent
 from typing import List, NamedTuple
 
+import numpy as np
+
+np.random.seed(0)
+
 IDLE_TASK_ID = -1
 
 
@@ -23,6 +27,37 @@ def read_tasks(filename: str) -> List[Task]:
             for line in f.readlines()
             if len(line) > 1 and line[0] != "#"
         ]
+
+
+def generate_random_taskset() -> List[Task]:
+    """
+    Generates a random taskset and returns the list of tasks.
+    Subject to following constraints:
+        - len(tasks) <= 5
+        - 0 < task.period <= 20
+        - 0 < task.exectime <= 5 (TODO: see if this constraint is needed)
+        - task.period % 5 == 0
+        - task.deadline == task.period
+        - utilization == sum(task.exectime / task.period for task in tasks) and <= 1
+    """
+    len_tasks = np.random.randint(2, 6)
+    utilization = 1.1
+
+    while utilization > 1:
+        tasks = []
+        utilization_target = np.random.uniform(0.8, 1)
+        utilization_per_task = (
+            np.random.dirichlet(np.ones(len_tasks)) * utilization_target
+        )
+        for i in range(len_tasks):
+            utilization_contribution = utilization_per_task[i]
+            period = np.random.choice([5, 10, 15, 20])
+            exectime = max(np.floor(utilization_contribution * period), 1)
+            tasks.append(
+                Task(id=i, period=period, exectime=int(exectime), deadline=period)
+            )
+        utilization = sum(task.exectime / task.period for task in tasks)
+    return tasks
 
 
 def get_lcm_period(tasks: List[Task]) -> int:
