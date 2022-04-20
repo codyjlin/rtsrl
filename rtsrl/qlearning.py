@@ -190,7 +190,10 @@ def q_learning(
 
                     # unsort the sorted state in Q_table to find action that index corresponds to
                     for task_id, slack in enumerate(env.state):
-                        if slack == current_state[index]:
+                        if (
+                            slack == current_state[index]
+                            and not env.jobs[task_id][0].is_done()
+                        ):
                             action = task_id
                             break
 
@@ -234,7 +237,7 @@ for state in sorted(state_count, key=lambda x: sum(x), reverse=True):
 print("Mean reward per 100 episodes")
 for i in range(100):
     print(
-        f"{(i+1)*100}: mean espiode reward: {np.mean(rewards_per_episode[100*i:100*(i+1)])}"
+        f"{(i+1)*100}: mean episode reward: {np.mean(rewards_per_episode[100*i:100*(i+1)])}"
     )
 print(f"Mean reward for random scheduling: {np.mean(rewards_per_ep_random_sched)}")
 
