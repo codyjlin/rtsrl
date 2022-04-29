@@ -7,9 +7,11 @@ REQUIRES_PYTHON = ">=3.7.0"
 
 REQUIRED = [
     "flake8",
-    "black==21.10b0",
+    "black==22.3.0",
     "isort>=5",
+    "matplotlib",
     "mypy==0.790",
+    "numpy",
 ]
 
 setup(
