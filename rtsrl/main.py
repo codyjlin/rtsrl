@@ -1,5 +1,5 @@
 import utils
-from schedulers import rate_monotonic_schedule
+from schedulers import randomly_schedule, rate_monotonic_schedule
 
 
 def main():
@@ -11,16 +11,15 @@ def main():
     lcm_period = utils.get_lcm_period(tasks)
     utils.assert_is_schedulable(tasks)
 
-    # schedule = randomly_schedule(tasks=tasks, runtime=lcm_period)
-    schedule = rate_monotonic_schedule(tasks=tasks, runtime=lcm_period)
-
     print("\n===========================================\n")
     utils.print_tasks(tasks)
-    print("\n===========================================\n")
-    utils.print_compressed_schedule(
-        utils.compress_schedule(schedule), print_descrip=True
-    )
-    print("\n===========================================\n")
+
+    print("\n============RANDOM SCHEDULING=============\n")
+    schedule = randomly_schedule(tasks=tasks, runtime=lcm_period)
+    utils.print_by_task(tasks, schedule, print_descrip=True)
+
+    print("\n=========RATE-MONOTONIC SCHEDULING==========\n")
+    schedule = rate_monotonic_schedule(tasks=tasks, runtime=lcm_period)
     utils.print_by_task(tasks, schedule, print_descrip=True)
 
     # testing utils.generate_random_taskset()
