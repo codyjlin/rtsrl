@@ -7,10 +7,6 @@ import utils
 from utils import IDLE_TASK_ID, Task
 
 np.random.seed(0)
-filename = "data/taskset3.txt"
-tasks = utils.read_tasks(filename)
-utils.assert_under_constraints(tasks)
-print(f"TASKS: {tasks}")
 
 
 class Job:
@@ -119,9 +115,7 @@ class TaskSchedulingEnvironment:
                 not jobs[0].is_done()
                 and jobs[0].time_until_deadline - jobs[0].exectime_remaining < 0
             ):
-                # -3 for each tasks with negative slack
                 reward -= 1
-                # print("NEGATIVE_REWARD!!!")
 
         # find action index that corresponds to action in sorted state before updating to new state
         for j, slack in enumerate(sorted(self.state, reverse=True)):
@@ -141,16 +135,20 @@ class TaskSchedulingEnvironment:
 
 
 def q_learning(
-    n_episodes=10000,
+    n_tasksets=4000,
+    n_repeat=5,
     exploration_proba=1,
     decay=0.0001,
     min_exploration_proba=0.01,
     gamma=0.99,
     lr=0.1,
+    print_status=False,
 ):
     """
+    Trains a QL scheduler and returns the Q_table, along with metadata like the training set, rewards_per_episode, state_count, and rewards_by_utilization during the training process.
     Args:
-        n_iter_episode - number of iterations per episode
+        n_tasksets - number of tasksets to train on
+        n_repeat - number of times each taskset is trained on
         n_episodes - number of episode we will run
         exploration_proba - the initial exploration probability
         decay - exploration decreasing decay for exponential decreasing
@@ -161,29 +159,119 @@ def q_learning(
     Q_table: Dict[Tuple[int, ...]] = dict()
     state_count: DefaultDict[Tuple[int, ...], int] = defaultdict(int)
     rewards_per_episode: List[int] = list()
+    rewards_by_utilization: DefaultDict[float, List[float]] = defaultdict(list)
 
-    for t in range(n_episodes):
-        # generate new taskset for each episode
-        tasks = utils.generate_random_taskset()
+    training_set = [utils.generate_random_taskset() for _ in range(n_tasksets)]
+    num_tasksets = len(training_set)
+
+    for repeat_i in range(n_repeat):
+        for taskset_i, tasks in enumerate(training_set):
+            t = taskset_i + num_tasksets * repeat_i
+
+            env = TaskSchedulingEnvironment(tasks=tasks, n_quanta=5)
+            current_state = tuple(sorted(env.state, reverse=True))
+            total_episode_reward = 0
+
+            if t % 250 == 0 and print_status:
+                print(f"epi: {t}, exploration_p: {exploration_proba}")
+
+            for i in range(env.n_iter_episode):
+                # count number of times a state is visited
+                state_count[current_state] += 1
+
+                if current_state not in Q_table:
+                    Q_table[current_state] = np.zeros(len(current_state))
+
+                if env.no_jobs_to_do():
+                    action = IDLE_TASK_ID
+                elif np.random.random() < exploration_proba:
+                    # exploration of random action
+                    action = env.sample()
+                else:
+                    # exploitation of currently optimal action
+                    for index in np.argsort(-Q_table[current_state]):
+
+                        # unsort the sorted state in Q_table to find action that index corresponds to
+                        for task_id, slack in enumerate(env.state):
+                            if (
+                                slack == current_state[index]
+                                and not env.jobs[task_id][0].is_done()
+                            ):
+                                action = task_id
+                                break
+
+                        if not env.jobs[action][0].is_done():
+                            break
+
+                # environment runs the chosen action and returns the next state and reward
+                next_state, reward, action_i_in_sorted_state = env.step(action, i)
+
+                # update Q-table using the Q-learning iteration
+                if action != IDLE_TASK_ID:
+
+                    if next_state not in Q_table:
+                        Q_table[next_state] = np.zeros(len(next_state))
+
+                    Q_table[current_state][action_i_in_sorted_state] = (
+                        1 - lr
+                    ) * Q_table[current_state][action_i_in_sorted_state] + lr * (
+                        reward + gamma * max(Q_table[next_state])
+                    )
+
+                total_episode_reward = total_episode_reward + reward
+                current_state = next_state
+
+            # Update the exploration proba using exponential decay formula
+            exploration_proba = max(min_exploration_proba, np.exp(-decay * t))
+
+            rewards_per_episode.append(total_episode_reward / env.max_reward)
+
+            utilization = sum(task.exectime / task.period for task in tasks)
+            rewards_by_utilization[round(utilization * 20) / 20].append(
+                total_episode_reward / env.max_reward
+            )
+
+    avg_rewards_by_util = sorted(
+        [
+            (util, np.average(rewards))
+            for util, rewards in rewards_by_utilization.items()
+        ]
+    )
+
+    return Q_table, training_set, rewards_per_episode, state_count, avg_rewards_by_util
+
+
+def q_learning_test(
+    Q_table, training_set=None, n_tasksets=10000, return_schedules=False
+):
+    """
+    Takes in a Q-matrix representing a QL scheduler to evaluate. If training_set is specified, uses it to compute success rate (particularly the rewards_by_utilization). If it's not specified, generates a random test_set of tasksets.
+    Args:
+        Q_table - the matrix of values to use to decide which actions to take in each state
+        training_set - optional set to use for evaluation
+        n_tasksets - if training_set not specified, the number of tasksets to create for the test_set
+        return_schedules - boolean value to return the schedules for each taskset in training_set
+    """
+    rewards_by_utilization: DefaultDict[float, List[float]] = defaultdict(list)
+    schedules_by_reward: DefaultDict[
+        float, List[Tuple[List[Task], List[int]]]
+    ] = defaultdict(list)
+
+    if not training_set:
+        training_set = [utils.generate_random_taskset() for _ in range(n_tasksets)]
+
+    for tasks in training_set:
         env = TaskSchedulingEnvironment(tasks=tasks, n_quanta=5)
-        current_state = tuple(sorted(env.state, reverse=True))  # needs to be sorted
+        current_state = tuple(sorted(env.state, reverse=True))
         total_episode_reward = 0
-
-        if t % 250 == 0:
-            print(f"epi: {t}, exploration_p: {exploration_proba}")
+        schedule = []
 
         for i in range(env.n_iter_episode):
-            # count number of times a state is visited
-            state_count[current_state] += 1
-
             if current_state not in Q_table:
                 Q_table[current_state] = np.zeros(len(current_state))
 
             if env.no_jobs_to_do():
                 action = IDLE_TASK_ID
-            elif np.random.random() < exploration_proba:
-                # exploration of random action
-                action = env.sample()
             else:
                 # exploitation of currently optimal action
                 for index in np.argsort(-Q_table[current_state]):
@@ -202,56 +290,106 @@ def q_learning(
 
             # environment runs the chosen action and returns the next state and reward
             next_state, reward, action_i_in_sorted_state = env.step(action, i)
-
-            # update Q-table using the Q-learning iteration
-            if action != IDLE_TASK_ID:
-
-                if next_state not in Q_table:
-                    Q_table[next_state] = np.zeros(len(next_state))
-
-                Q_table[current_state][action_i_in_sorted_state] = (1 - lr) * Q_table[
-                    current_state
-                ][action_i_in_sorted_state] + lr * (
-                    reward + gamma * max(Q_table[next_state])
-                )
-
             total_episode_reward = total_episode_reward + reward
             current_state = next_state
+            if return_schedules:
+                schedule.append(action)
 
-        # Update the exploration proba using exponential decay formula
-        exploration_proba = max(min_exploration_proba, np.exp(-decay * t))
+        utilization = sum(task.exectime / task.period for task in tasks)
 
-        rewards_per_episode.append(total_episode_reward / env.max_reward)
+        reward = total_episode_reward / env.max_reward
+        rewards_by_utilization[round(utilization * 20) / 20].append(reward)
 
-    return Q_table, rewards_per_episode, state_count
+        if return_schedules:
+            schedules_by_reward[reward].append((tasks, schedule))
 
-
-Q_table, rewards_per_episode, state_count = q_learning()
-_, rewards_per_ep_random_sched, _ = q_learning(n_episodes=5000, min_exploration_proba=1)
-
-# Printing number of times each state was visited
-for state in sorted(state_count, key=lambda x: sum(x), reverse=True):
-    print(state, state_count[state])
-
-# Printing mean rewards per 100 episodes
-print("Mean reward per 100 episodes")
-for i in range(100):
-    print(
-        f"{(i+1)*100}: mean episode reward: {np.mean(rewards_per_episode[100*i:100*(i+1)])}"
+    avg_rewards_by_util = sorted(
+        [
+            (util, np.average(rewards))
+            for util, rewards in rewards_by_utilization.items()
+        ]
     )
-print(f"Mean reward for random scheduling: {np.mean(rewards_per_ep_random_sched)}")
+    return avg_rewards_by_util, schedules_by_reward
 
-# Plotting mean rewards per 100 episodes
-mean_rewards_per_100 = [
-    np.mean(rewards_per_episode[100 * i : 100 * (i + 1)]) for i in range(100)
-]
+
+print("==============TRAINING MODE==============")
+
+print("===(Training first with a smaller training_set over 5 times)===")
+
+(
+    Q_table,
+    training_set,
+    rewards_per_episode,
+    state_count,
+    tr_rewards_by_utilization,
+) = q_learning(print_status=True)
+
+trained_rewards_by_utilization, _ = q_learning_test(Q_table, training_set)
+
+print("===(Now training again with a unique training_set)===")
+
+(
+    Q_table_unique_train,
+    training_set_unique,
+    _,
+    _,
+    tr_rewards_by_utilization_unique,
+) = q_learning(n_tasksets=20000, n_repeat=1, print_status=True)
+
+trained_rewards_by_utilization_unique_set, _ = q_learning_test(
+    Q_table_unique_train, training_set_unique
+)
+
+
+print("==============TESTING MODE==============")
+
+test_rewards_by_utilization, schedules_by_reward = q_learning_test(
+    Q_table, return_schedules=True
+)
+
+_, _, _, _, rand_rewards_by_utilization = q_learning(
+    n_tasksets=5000, n_repeat=1, min_exploration_proba=1
+)
+
+
+print("==============PLOTTING==============")
 
 fig, ax = plt.subplots(figsize=(10, 4), tight_layout=True)
+ax.set_title("Average rewards by utilization")
 ax.plot(
-    np.arange(100),
-    np.fromiter(mean_rewards_per_100, dtype=float),
-    label="Rewards per episode",
+    [u for u, _ in tr_rewards_by_utilization],
+    [r for _, r in tr_rewards_by_utilization],
+    label="During-training mode",
 )
-ax.set_xlabel("i")
+ax.plot(
+    [u for u, _ in trained_rewards_by_utilization],
+    [r for _, r in trained_rewards_by_utilization],
+    label="Post-training mode (repeat training_set 5x)",
+)
+ax.plot(
+    [u for u, _ in trained_rewards_by_utilization_unique_set],
+    [r for _, r in trained_rewards_by_utilization_unique_set],
+    label="Post-training mode (unique training_set)",
+)
+ax.plot(
+    [u for u, _ in test_rewards_by_utilization],
+    [r for _, r in test_rewards_by_utilization],
+    label="Testing mode",
+)
+ax.plot(
+    [u for u, _ in rand_rewards_by_utilization],
+    [r for _, r in rand_rewards_by_utilization],
+    label="Random scheduling mode",
+)
+ax.set_xlabel("utilization")
 ax.set_ylabel("reward")
+ax.legend()
 plt.show()
+
+
+print("==============EXAMPLE SCHEDULE==============")
+
+for reward, tasks_schedules in schedules_by_reward.items():
+    print(f"=========REWARD: {reward} =======")
+    tasks, schedule = tasks_schedules[np.random.choice(len(tasks_schedules))]
+    utils.print_by_task(tasks, schedule)
