@@ -8,7 +8,7 @@ from utils import IDLE_TASK_ID, Task
 random.seed(1)
 
 
-def rate_monotonic_schedule(tasks: List[Task], runtime: int) -> List[List[int]]:
+def rate_monotonic_schedule(tasks: List[Task], runtime: int) -> List[int]:
     """
     Schedules tasks according to the rate-monotonic scheduling algorithm where the period is inversely proportional to the priority of a task. (i.e. the task with the shortest period has highest priority.)
     """
@@ -34,7 +34,7 @@ def rate_monotonic_schedule(tasks: List[Task], runtime: int) -> List[List[int]]:
     )
 
 
-def randomly_schedule(tasks: List[Task], runtime: int) -> List[List[int]]:
+def randomly_schedule(tasks: List[Task], runtime: int) -> List[int]:
     """
     Randomly schedules tasks. Assumes that if there's any task to be worked on, it will work on it rather than stay idle.
     """
@@ -49,7 +49,7 @@ def randomly_schedule(tasks: List[Task], runtime: int) -> List[List[int]]:
 
 def schedule(
     tasks: List[Task], runtime: int, scheduling_algorithm: Callable[[List[Task]], int]
-) -> List[List[int]]:
+) -> List[int]:
     """
     Schedules tasks using the scheduling_algorithm passed in to choose the next task to work on.
     """
@@ -63,7 +63,7 @@ def schedule(
     todo_dict: Dict[int, deque] = {}  # {task_id: deque([deadline, exectime_remaining])}
 
     # resulting chronological schedule of task_id and duration pairs
-    schedule: List[List[int]] = []  # [[task_id, duration]]
+    schedule: List[int] = []  # [[task_id, duration]]
 
     for t in range(runtime):
         # check if need to requeue / release any tasks
@@ -85,10 +85,7 @@ def schedule(
             task_id = scheduling_algorithm(todo_tasks)
 
         # append to schedule
-        if schedule and schedule[-1][0] == task_id:
-            schedule[-1][1] += 1
-        else:
-            schedule.append([task_id, 1])
+        schedule.append(task_id)
 
         # remove 1 unit of exectime from task in todo_dict
         if task_id != IDLE_TASK_ID:

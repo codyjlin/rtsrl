@@ -1,36 +1,35 @@
 import utils
-
-# from schedulers import rate_monotonic_schedule
+from schedulers import rate_monotonic_schedule
 
 
 def main():
 
     # filename = input("What file contains the tasks to schedule?\n")
-    # filename = "data/taskset2.txt"
+    filename = "data/taskset2.txt"
 
-    # tasks = utils.read_tasks(filename)
-    # lcm_period = utils.get_lcm_period(tasks)
-    # utils.assert_is_schedulable(tasks)
+    tasks = utils.read_tasks(filename)
+    lcm_period = utils.get_lcm_period(tasks)
+    utils.assert_is_schedulable(tasks)
 
-    # # schedule = randomly_schedule(tasks=tasks, runtime=lcm_period)
-    # schedule = rate_monotonic_schedule(tasks=tasks, runtime=lcm_period)
+    # schedule = randomly_schedule(tasks=tasks, runtime=lcm_period)
+    schedule = rate_monotonic_schedule(tasks=tasks, runtime=lcm_period)
 
-    # print("\n===========================================\n")
-    # utils.print_tasks(tasks)
-    # print("\n===========================================\n")
-    # utils.print_schedule(schedule)
-    # print("\n===========================================\n")
-    # utils.print_by_task(tasks, schedule)
-    # print("\n===========================================\n")
-    # utils.print_stats(schedule)
+    print("\n===========================================\n")
+    utils.print_tasks(tasks)
+    print("\n===========================================\n")
+    utils.print_compressed_schedule(
+        utils.compress_schedule(schedule), print_descrip=True
+    )
+    print("\n===========================================\n")
+    utils.print_by_task(tasks, schedule, print_descrip=True)
 
     # testing utils.generate_random_taskset()
-    for i in range(5):
-        tasks = utils.generate_random_taskset()
-        utilization = sum(task.exectime / task.period for task in tasks)
-        utils.assert_under_constraints(tasks, max_utilization=1, max_exectime=20)
-        print(f"num_tasks: {len(tasks)}\nutilization: {utilization}")
-        print(f"TASKS: {tasks}")
+    # for i in range(5):
+    #     tasks = utils.generate_random_taskset()
+    #     utilization = sum(task.exectime / task.period for task in tasks)
+    #     utils.assert_under_constraints(tasks, max_utilization=1, max_exectime=20)
+    #     print(f"num_tasks: {len(tasks)}\nutilization: {utilization}")
+    #     print(f"TASKS: {tasks}")
 
 
 if __name__ == "__main__":

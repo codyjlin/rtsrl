@@ -17,6 +17,18 @@ class Task(NamedTuple):
     deadline: int
 
 
+class CLIColors:
+    PURPLE = "\033[95m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    ENDC = "\033[0m"
+
+
 def read_tasks(filename: str) -> List[Task]:
     """
     Opens the file at filename and returns a list of tasks. Casts floats to integers by floor.
@@ -97,6 +109,33 @@ def assert_under_constraints(
     ), f"Total utilization is above {max_utilization*100}%"
 
 
+def compress_schedule(schedule: List[int]) -> List[List[int]]:
+    """
+    Takes in schedule as long list containing task_ids, representing task worked on for each unit of time. Returns compressed format of schedule as a list of (task_id, duration) pairs.
+    """
+    compressed_schedule: List[List[int]] = []
+
+    for task_id in schedule:
+        if compressed_schedule and compressed_schedule[-1][0] == task_id:
+            compressed_schedule[-1][1] += 1
+        else:
+            compressed_schedule.append([task_id, 1])
+
+    return compressed_schedule
+
+
+def print_compressed_schedule(schedule: List[List[int]], print_descrip=False):
+    """
+    Simply prints the schedule line by line as a list of (task_id, duration) pairs, with a task_id of -1 representing idle state.
+    """
+    print(
+        "Printing schedule as a chronological list of (task_id, duration) pairs, with a task_id of -1 representing idle state.\n"
+    )
+
+    for job in schedule:
+        print(job)
+
+
 def print_tasks(tasks: List[Task]):
     """
     Prints tasks metadata.
@@ -113,21 +152,9 @@ def print_tasks(tasks: List[Task]):
         )
 
 
-def print_schedule(schedule: List[List[int]]):
+def print_by_task(tasks: List[Task], schedule: List[int], print_descrip=False):
     """
-    Simply prints the schedule line by line as a list of (task_id, duration) pairs, with a task_id of -1 representing idle state.
-    """
-    print(
-        "Printing schedule as a chronological list of (task_id, duration) pairs, with a task_id of -1 representing idle state.\n"
-    )
-
-    for job in schedule:
-        print(job)
-
-
-def print_by_task(tasks: List[Task], schedule: List[List[int]]):
-    """
-    Prints a line per task to visualize when each task is being worked on. Alternates between upper and lower case to represent the particular task's period boundaries.
+    Prints a line per task to visualize when each task is being worked on. Alternates between yellow and blue to represent the particular task's period boundaries. Red represents any late tasks. (Upper and lower case shown here in example.)
     Example
         for a task with a period of 3 units:
         iiiIIIiiiIII represents not working at all
@@ -136,47 +163,62 @@ def print_by_task(tasks: List[Task], schedule: List[List[int]]):
     """
     task_executions: defaultdict = defaultdict(list)
     task_periods = {task.id: task.period for task in tasks}
-    i = 0
-    for task_id, duration in schedule:
+    task_exectimes = {task.id: task.exectime for task in tasks}
+
+    for i, task_id in enumerate(schedule):
         if task_id != IDLE_TASK_ID:
             len_idle = i - len(task_executions[task_id])
-            task_executions[task_id].extend(["i"] * len_idle)
-            task_executions[task_id].extend(["w"] * duration)
-        i += duration
+            task_executions[task_id].extend(["_"] * len_idle)
+            task_executions[task_id].append("w")
 
-    print(
-        dedent(
-            """\
-    Printing schedule by task, with the following semantics:
-        - i or I represents idle state
-        - w or W represents working state
-        - changes in lower/upper case represents changes in period
-    """
+    if print_descrip:
+        print(
+            dedent(
+                """\
+        Printing schedule by task, with the following semantics:
+            - i or I represents idle state
+            - w or W represents working state
+            - changes in lower/upper case represents changes in period
+        """
+            )
         )
-    )
 
     for task_id in sorted(task_executions.keys()):
-        len_idle = i - len(task_executions[task_id])
-        task_executions[task_id].extend(["i"] * len_idle)
+        len_idle = len(schedule) - len(task_executions[task_id])
+        task_executions[task_id].extend(["_"] * len_idle)
 
         line = task_executions[task_id]
         period = task_periods[task_id]
 
+        line_list = []
+        exectime_remaining = task_exectimes[task_id]
+        overdue = False
+
+        for i, x in enumerate(line):
+            if (i // period) % 2:
+                color = CLIColors.CYAN
+            else:
+                color = CLIColors.YELLOW
+
+            if i > 0 and i % period == 0:
+                if exectime_remaining == 0:
+                    exectime_remaining = task_exectimes[task_id]
+                    overdue = False
+                else:
+                    overdue = True
+
+            if x == "w":
+                exectime_remaining -= 1
+                if overdue and exectime_remaining == 0:
+                    color = CLIColors.RED
+                    exectime_remaining = task_exectimes[task_id]
+                    overdue = False
+
+            if overdue:
+                color = CLIColors.RED
+
+            line_list.append(f"{color}{x}{CLIColors.ENDC}")
+
         print(
-            f"Task {task_id}: {''.join(x.upper() if (i//period)%2 else x for i, x in enumerate(line))}"
+            f"Task {task_id} ({period}, {task_exectimes[task_id]}): {''.join(line_list)}"
         )
-
-
-def print_stats(schedule: List[List[int]]):
-    """
-    Prints stats of a schedule:
-        - total_working: the amount of time spent working
-        - total_idle: the amount of time spent in the idle state
-    """
-    total_working = sum(y for x, y in schedule if x != -1)
-    total_idle = sum(y for x, y in schedule if x == -1)
-
-    print("Printing schedule stats:")
-
-    print(f"total_working: {total_working}")
-    print(f"total_idle: {total_idle}")
