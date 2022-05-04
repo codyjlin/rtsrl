@@ -387,9 +387,12 @@ ax.legend()
 plt.show()
 
 
-print("==============EXAMPLE SCHEDULE==============")
+print("==============EXAMPLE SCHEDULES==============")
 
-for reward, tasks_schedules in schedules_by_reward.items():
+for reward in [1.0, 0.9767441860465116, 0.625]:
+    tasks_schedules = schedules_by_reward[reward]
     print(f"=========REWARD: {reward} =======")
+
     tasks, schedule = tasks_schedules[np.random.choice(len(tasks_schedules))]
+    print(f"utilization: {sum(task.exectime / task.period for task in tasks)}")
     utils.print_by_task(tasks, schedule)
