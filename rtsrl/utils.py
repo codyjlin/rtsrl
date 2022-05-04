@@ -220,5 +220,5 @@ def print_by_task(tasks: List[Task], schedule: List[int], print_descrip=False):
             line_list.append(f"{color}{x}{CLIColors.ENDC}")
 
         print(
-            f"Task {task_id} ({period:02d}, {task_exectimes[task_id]}): {''.join(line_list)}"
+            f"Task {task_id} ({period:02d}, {task_exectimes[task_id]:02d}): {''.join(line_list)}"
         )

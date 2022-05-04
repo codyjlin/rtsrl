@@ -82,11 +82,11 @@ class TaskSchedulingEnvironment:
         # register new job instances on task periods
         if i != 0:
             for task in self.tasks:
-                if i % task.period == 0:
+                if (i + 1) % task.period == 0:
                     task_jobs = self.jobs[task.id]
                     if task_jobs[0].is_done():
                         task_jobs.pop(0)
-                    task_jobs.append(Job(task, i))
+                    task_jobs.append(Job(task, i + 1))
 
         if action == IDLE_TASK_ID:
             # no tasks to do, return same state with no reward
@@ -115,6 +115,7 @@ class TaskSchedulingEnvironment:
                 not jobs[0].is_done()
                 and jobs[0].time_until_deadline - jobs[0].exectime_remaining < 0
             ):
+                # TODO: definitely a bug here that's causing non-overdue jobs to be punished
                 reward -= 1
 
         # find action index that corresponds to action in sorted state before updating to new state
@@ -389,10 +390,13 @@ plt.show()
 
 print("==============EXAMPLE SCHEDULES==============")
 
-for reward in [1.0, 0.9767441860465116, 0.625]:
-    tasks_schedules = schedules_by_reward[reward]
-    print(f"=========REWARD: {reward} =======")
+i = 0
+for reward, tasks_schedules in schedules_by_reward.items():
+    i += 1
+    print(f"\nTask set #{i}")
 
     tasks, schedule = tasks_schedules[np.random.choice(len(tasks_schedules))]
     print(f"utilization: {sum(task.exectime / task.period for task in tasks)}")
+    print(f"reward: {reward}")
+
     utils.print_by_task(tasks, schedule)
