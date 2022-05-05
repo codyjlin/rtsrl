@@ -23,7 +23,7 @@ This project will include at least the following parts:
 	cd rtsrl
 	```
 
-3. To run the main Python program, run the command:
+3. To run the main Python program which runs the random and rate-monotonic schedulers, run the command:
 
 	```bash
 	make run
@@ -31,7 +31,7 @@ This project will include at least the following parts:
 
 	:warning: You may need to follow step 1 of the **Environment Setup** section below.
 
-4. To run the current q-learning script (WIP), run the command:
+4. To run the q-learning script to train and test the RL scheduling algorithm, run the command:
 
 	```bash
 	make run-q-learning
